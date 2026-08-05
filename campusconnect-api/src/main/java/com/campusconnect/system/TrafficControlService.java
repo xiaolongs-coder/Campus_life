@@ -31,6 +31,8 @@ public class TrafficControlService {
     @DccValue("traffic.degrade:0")
     private Integer trafficDegrade;
 
+    private static final String TRAFFIC_KEY_PREFIX = "campus:traffic:sliding:";
+
     public boolean needReject(String uri) {
         if (trafficEnabled == null || trafficEnabled == 0) {
             return false;
@@ -41,16 +43,25 @@ public class TrafficControlService {
         }
 
         int qps = trafficQps == null ? 30 : trafficQps;
+        long now = System.currentTimeMillis();
+        long windowStart = now - 1000; // 过去 1 秒的滑动窗口
 
-        long second = System.currentTimeMillis() / 1000;
-        String key = "campus:traffic:" + uri + ":" + second;
+        String key = TRAFFIC_KEY_PREFIX + uri;
 
-        Long count = stringRedisTemplate.opsForValue().increment(key);
+        // 1. 删除过期记录（窗口外的数据）
+        stringRedisTemplate.opsForZSet().removeRangeByScore(key, 0, windowStart);
 
-        if (count != null && count == 1L) {
-            stringRedisTemplate.expire(key, Duration.ofSeconds(2));
+        // 2. 统计窗口内的请求数
+        Long count = stringRedisTemplate.opsForZSet().count(key, windowStart, now);
+
+        if (count != null && count >= qps) {
+            return true; // 触发限流
         }
 
-        return count != null && count > qps;
+        // 3. 记录本次请求（score=时间戳, member=时间戳+随机数区分同一毫秒并发）
+        stringRedisTemplate.opsForZSet().add(key, now + "_" + System.nanoTime(), now);
+        stringRedisTemplate.expire(key, Duration.ofSeconds(3)); // 3秒后整key过期清理
+
+        return false;
     }
 }

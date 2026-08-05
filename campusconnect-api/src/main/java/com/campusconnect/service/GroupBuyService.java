@@ -15,6 +15,9 @@ import com.campusconnect.mq.producer.GroupBuyEventProducer;
 import com.campusconnect.ws.GroupBuyLivePushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,8 +44,61 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
     private final Executor groupBuyQueryExecutor;
     private final UserService userService;
     private final GroupBuyExpireProducer groupBuyExpireProducer;
-
     private final GroupBuyLivePushService groupBuyLivePushService;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final String JOIN_LUA = """
+    local counterKey = KEYS[1]
+    local userSetKey = KEYS[2]
+    local userId = ARGV[1]
+    local targetCount = tonumber(ARGV[2])
+
+    local currentCount = tonumber(redis.call('GET', counterKey) or '0')
+
+    if currentCount >= targetCount then
+        return 1
+    end
+
+    if redis.call('SISMEMBER', userSetKey, userId) == 1 then
+        return 2
+    end
+
+    redis.call('INCR', counterKey)
+    redis.call('SADD', userSetKey, userId)
+
+    return 0
+    """;
+
+    private String gbCounterKey(Long groupBuyId) {
+        return "groupbuy:counter:" + groupBuyId;
+    }
+
+    private String gbUserSetKey(Long groupBuyId) {
+        return "groupbuy:users:" + groupBuyId;
+    }
+
+    private void initGroupBuyRedisIfAbsent(Long groupBuyId) {
+        String counterKey = gbCounterKey(groupBuyId);
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(counterKey))) {
+            return;
+        }
+
+        GroupBuy gb = getById(groupBuyId);
+        if (gb == null) {
+            return;
+        }
+
+        stringRedisTemplate.opsForValue().set(
+                counterKey,
+                String.valueOf(gb.getCurrentCount()),
+                java.time.Duration.ofDays(7)
+        );
+    }
+
+    private void rollbackGroupBuyRedis(Long groupBuyId, Long userId) {
+        stringRedisTemplate.opsForValue().decrement(gbCounterKey(groupBuyId));
+        stringRedisTemplate.opsForSet().remove(gbUserSetKey(groupBuyId), String.valueOf(userId));
+    }
     /**
      * 查询首页拼团列表
      */
@@ -71,72 +127,49 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
      */
     public GroupBuyOverviewDTO getOverview(Long userId) {
         log.info("【拼团聚合】开始聚合查询，当前用户ID：{}，主线程：{}",
-                userId,
-                Thread.currentThread().getName()
-        );
+                userId, Thread.currentThread().getName());
 
-        CompletableFuture<List<GroupBuy>> groupBuysFuture = CompletableFuture.supplyAsync(() -> {
-            log.info("【拼团聚合】查询拼团列表，线程：{}", Thread.currentThread().getName());
-            return getActiveGroupBuys();
-        }, groupBuyQueryExecutor);
+        CompletableFuture<List<GroupBuy>> groupBuysFuture = CompletableFuture.supplyAsync(
+                this::getActiveGroupBuys, groupBuyQueryExecutor);
 
-        CompletableFuture<List<Long>> joinedIdsFuture = CompletableFuture.supplyAsync(() -> {
-            log.info("【拼团聚合】查询当前用户已参加的拼团，线程：{}", Thread.currentThread().getName());
+        CompletableFuture<List<Long>> joinedIdsFuture = CompletableFuture.supplyAsync(() ->
+                groupBuyMemberService.lambdaQuery()
+                        .eq(GroupBuyMember::getUserId, userId)
+                        .list().stream()
+                        .map(GroupBuyMember::getGroupBuyId)
+                        .collect(Collectors.toList()),
+                groupBuyQueryExecutor);
 
-            return groupBuyMemberService.lambdaQuery()
-                    .eq(GroupBuyMember::getUserId, userId)
-                    .list()
-                    .stream()
-                    .map(GroupBuyMember::getGroupBuyId)
-                    .collect(Collectors.toList());
-        }, groupBuyQueryExecutor);
-
-        CompletableFuture<List<Long>> createdIdsFuture = CompletableFuture.supplyAsync(() -> {
-            log.info("【拼团聚合】查询当前用户发起的拼团，线程：{}", Thread.currentThread().getName());
-
-            return lambdaQuery()
-                    .eq(GroupBuy::getInitiatorId, userId)
-                    .list()
-                    .stream()
-                    .map(GroupBuy::getId)
-                    .collect(Collectors.toList());
-        }, groupBuyQueryExecutor);
+        CompletableFuture<List<Long>> createdIdsFuture = CompletableFuture.supplyAsync(() ->
+                lambdaQuery().eq(GroupBuy::getInitiatorId, userId)
+                        .list().stream()
+                        .map(GroupBuy::getId)
+                        .collect(Collectors.toList()),
+                groupBuyQueryExecutor);
 
         CompletableFuture<GroupBuyOverviewDTO.Stats> statsFuture = CompletableFuture.supplyAsync(() -> {
-            log.info("【拼团聚合】查询拼团统计数据，线程：{}", Thread.currentThread().getName());
-
             Long total = lambdaQuery().count();
             Long grouping = lambdaQuery().eq(GroupBuy::getStatus, "GROUPING").count();
             Long success = lambdaQuery().eq(GroupBuy::getStatus, "SUCCESS").count();
             Long cancelled = lambdaQuery().eq(GroupBuy::getStatus, "CANCELLED").count();
-
             return GroupBuyOverviewDTO.Stats.builder()
-                    .total(total)
-                    .grouping(grouping)
-                    .success(success)
-                    .cancelled(cancelled)
-                    .build();
+                    .total(total).grouping(grouping).success(success).cancelled(cancelled).build();
         }, groupBuyQueryExecutor);
 
-        CompletableFuture.allOf(
-                groupBuysFuture,
-                joinedIdsFuture,
-                createdIdsFuture,
-                statsFuture
-        ).join();
-
-        GroupBuyOverviewDTO overview = GroupBuyOverviewDTO.builder()
-                .groupBuys(groupBuysFuture.join())
-                .joinedIds(joinedIdsFuture.join())
-                .createdIds(createdIdsFuture.join())
-                .stats(statsFuture.join())
-                .build();
+        // thenCombine 链式组合：任一 Future 异常时，异常链完整可追溯
+        GroupBuyOverviewDTO overview = groupBuysFuture
+                .thenCombine(joinedIdsFuture, (buys, joined) ->
+                        GroupBuyOverviewDTO.builder().groupBuys(buys).joinedIds(joined).build())
+                .thenCombine(createdIdsFuture, (partial, created) ->
+                        partial.toBuilder().createdIds(created).build())
+                .thenCombine(statsFuture, (partial, stats) ->
+                        partial.toBuilder().stats(stats).build())
+                .join();
 
         log.info("【拼团聚合】聚合查询完成，拼团数量：{}，已参加数量：{}，已发起数量：{}",
                 overview.getGroupBuys().size(),
                 overview.getJoinedIds().size(),
-                overview.getCreatedIds().size()
-        );
+                overview.getCreatedIds().size());
 
         return overview;
     }
@@ -144,6 +177,11 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
 
     /**
      * 参加拼团
+     *
+     * 并发安全设计（三层防护）：
+     * 1. Redis Lua 原子预检（库存 + 去重）— 拦截大部分无效请求
+     * 2. MySQL 条件 UPDATE（防超卖）
+     * 3. group_buy_member 唯一索引（防重复参加）
      */
     @Transactional
     public void joinGroupBuy(Long groupBuyId, Long userId) {
@@ -151,18 +189,31 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
             throw new RuntimeException("参数不能为空");
         }
 
-        // 1. 先判断是否已经参加过
-        boolean alreadyJoined = groupBuyMemberService.lambdaQuery()
-                .eq(GroupBuyMember::getGroupBuyId, groupBuyId)
-                .eq(GroupBuyMember::getUserId, userId)
-                .count() > 0;
-
-        if (alreadyJoined) {
-            throw new RuntimeException("你已经参加过该拼团");
+        GroupBuy groupBuy = getById(groupBuyId);
+        if (groupBuy == null) {
+            throw new RuntimeException("拼团不存在");
         }
 
-        // 2. 数据库原子更新人数
-        // 只有 status = GROUPING 且 current_count < target_count 时才允许 +1
+        // 1. Redis Lua 原子预检
+        initGroupBuyRedisIfAbsent(groupBuyId);
+
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText(JOIN_LUA);
+        script.setResultType(Long.class);
+
+        Long luaResult = stringRedisTemplate.execute(
+                script,
+                List.of(gbCounterKey(groupBuyId), gbUserSetKey(groupBuyId)),
+                String.valueOf(userId),
+                String.valueOf(groupBuy.getTargetCount())
+        );
+
+        if (luaResult == null || luaResult != 0) {
+            // 1=已满, 2=已参加
+            throw new RuntimeException(luaResult == 1 ? "拼团已满" : "你已经参加过该拼团");
+        }
+
+        // 2. MySQL 条件 UPDATE 原子更新人数
         boolean updated = lambdaUpdate()
                 .eq(GroupBuy::getId, groupBuyId)
                 .eq(GroupBuy::getStatus, "GROUPING")
@@ -171,28 +222,27 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
                 .update();
 
         if (!updated) {
+            rollbackGroupBuyRedis(groupBuyId, userId);
             throw new RuntimeException("拼团已满、已结束或不可参加");
         }
 
-        // 3. 插入拼团成员
-        // 如果同一个用户并发重复点击，这里会被唯一索引兜底拦住
-        GroupBuyMember member = new GroupBuyMember();
-        member.setGroupBuyId(groupBuyId);
-        member.setUserId(userId);
-        member.setRole("MEMBER");
-        member.setJoinedAt(LocalDateTime.now());
-
-        groupBuyMemberService.save(member);
-
-        // 4. 重新查最新拼团数据
-        GroupBuy groupBuy = getById(groupBuyId);
-
-        if (groupBuy == null) {
-            throw new RuntimeException("拼团不存在");
+        // 3. 插入拼团成员（唯一索引兜底）
+        try {
+            GroupBuyMember member = new GroupBuyMember();
+            member.setGroupBuyId(groupBuyId);
+            member.setUserId(userId);
+            member.setRole("MEMBER");
+            member.setJoinedAt(LocalDateTime.now());
+            groupBuyMemberService.save(member);
+        } catch (DuplicateKeyException e) {
+            rollbackGroupBuyRedis(groupBuyId, userId);
+            throw new RuntimeException("你已经参加过该拼团");
         }
 
-        // 5. 如果人数已经满了，把状态从 GROUPING 改成 SUCCESS
-        // 这里也用条件更新，保证只有一个线程能真正把它改成 SUCCESS
+        // 4. 重新查最新数据
+        groupBuy = getById(groupBuyId);
+
+        // 5. 条件判断成团：只有一个线程能成功
         boolean successUpdated = lambdaUpdate()
                 .eq(GroupBuy::getId, groupBuyId)
                 .eq(GroupBuy::getStatus, "GROUPING")
@@ -200,20 +250,15 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
                 .set(GroupBuy::getStatus, "SUCCESS")
                 .update();
 
-        // 6. 只有真正完成成团状态更新的线程，才发送 MQ
         if (successUpdated) {
             groupBuy.setStatus("SUCCESS");
-
-            // 事务提交后再发送 MQ 和 WebSocket，避免数据库回滚但消息已经推送
             runAfterCommit(() -> {
                 groupBuyEventProducer.sendSuccessEvent(
                         buildGroupBuyEventMessage(groupBuy, "GROUP_BUY_SUCCESS", "SUCCESS")
                 );
-
                 groupBuyLivePushService.pushSuccess(groupBuy);
             });
         } else {
-            // 没有成团，只推送“有人加入拼团”
             runAfterCommit(() -> {
                 groupBuyLivePushService.pushJoined(groupBuy);
             });

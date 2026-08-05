@@ -18,7 +18,7 @@ import java.util.List;
  * 4. 拼团统计数据
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class GroupBuyOverviewDTO {

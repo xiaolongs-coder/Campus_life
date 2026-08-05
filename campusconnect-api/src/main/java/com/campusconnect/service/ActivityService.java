@@ -23,11 +23,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ActivityService extends ServiceImpl<ActivityMapper, Activity> {
-    //操作报名表
     private final ActivityRegistrationMapper activityRegistrationMapper;
-    //操作 Redis 库存和报名用户集合
     private final StringRedisTemplate stringRedisTemplate;
-    //拿分布式锁
     private final RedissonClient redissonClient;
 
     private static final String REGISTER_LUA = """
@@ -57,10 +54,6 @@ public class ActivityService extends ServiceImpl<ActivityMapper, Activity> {
 
     private String userSetKey(Long activityId) {
         return "activity:users:" + activityId;
-    }
-
-    private String userLockKey(Long activityId, Long userId) {
-        return "lock:activity:" + activityId + ":user:" + userId;
     }
 
     public List<Activity> getAllActivities() {
@@ -146,6 +139,10 @@ public class ActivityService extends ServiceImpl<ActivityMapper, Activity> {
     }
     @Transactional(rollbackFor = Exception.class)
     public boolean registerUser(Long activityId, Long userId) {
+        if (activityId == null || userId == null) {
+            throw new IllegalArgumentException("activityId 和 userId 不能为空");
+        }
+
         // 1. 初始化 Redis 库存和已报名用户集合
         initRedisStockIfAbsent(activityId);
 
@@ -153,6 +150,7 @@ public class ActivityService extends ServiceImpl<ActivityMapper, Activity> {
         String userSetKey = userSetKey(activityId);
 
         // 2. 执行 Lua 脚本，原子判断库存和重复报名
+        //    Redis 单线程执行 Lua，天然原子的 CAS 操作，无需额外分布式锁
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setScriptText(REGISTER_LUA);
         script.setResultType(Long.class);
@@ -163,103 +161,62 @@ public class ActivityService extends ServiceImpl<ActivityMapper, Activity> {
                 String.valueOf(userId)
         );
 
-        if (luaResult == null) {
+        if (luaResult == null || luaResult != 0) {
+            // 1=库存不足, 2=用户已报名
             return false;
         }
 
-        // 1 = 库存不足
-        if (luaResult == 1) {
-            return false;
-        }
-
-        // 2 = 用户已报名
-        if (luaResult == 2) {
-            return false;
-        }
-
-        // 3. Redisson 锁：控制同一用户同一活动并发操作
-        RLock lock = redissonClient.getLock(userLockKey(activityId, userId));
-        boolean locked = false;
-
+        // 3. 写入 MySQL：Lua 已经保证了原子性，直接落库即可
         try {
-            locked = lock.tryLock(3, 10, TimeUnit.SECONDS);
-
-            if (!locked) {
-                rollbackRedisRegister(activityId, userId);
-                return false;
-            }
-
-            // 4. 插入 MySQL 报名记录
             ActivityRegistration registration = new ActivityRegistration();
             registration.setActivityId(activityId);
             registration.setUserId(userId);
             registration.setCreatedAt(LocalDateTime.now());
-
             activityRegistrationMapper.insert(registration);
 
-            // 5. MySQL 条件更新人数，最终兜底防超卖
+            // 4. MySQL 条件更新最终兜底防超卖
             int updated = baseMapper.increaseParticipantCount(activityId);
-
             if (updated == 0) {
                 rollbackRedisRegister(activityId, userId);
                 throw new RuntimeException("活动名额已满或活动不在报名阶段");
             }
 
             return true;
-
         } catch (DuplicateKeyException e) {
-            // MySQL 唯一索引兜底：activity_id + user_id 重复
+            // MySQL 唯一索引 (activity_id + user_id) 兜底防重复
             rollbackRedisRegister(activityId, userId);
             return false;
         } catch (Exception e) {
             rollbackRedisRegister(activityId, userId);
             throw new RuntimeException("报名失败", e);
-        } finally {
-            if (locked && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
     }
 
     @Transactional(rollbackFor = Exception.class)
     public boolean unregisterUser(Long activityId, Long userId) {
+        if (activityId == null || userId == null) {
+            throw new IllegalArgumentException("activityId 和 userId 不能为空");
+        }
+
         initRedisStockIfAbsent(activityId);
 
-        RLock lock = redissonClient.getLock(userLockKey(activityId, userId));
-        boolean locked = false;
+        int deleted = activityRegistrationMapper.delete(
+                new LambdaQueryWrapper<ActivityRegistration>()
+                        .eq(ActivityRegistration::getActivityId, activityId)
+                        .eq(ActivityRegistration::getUserId, userId)
+        );
 
-        try {
-            locked = lock.tryLock(3, 10, TimeUnit.SECONDS);
-
-            if (!locked) {
-                return false;
-            }
-
-            int deleted = activityRegistrationMapper.delete(
-                    new LambdaQueryWrapper<ActivityRegistration>()
-                            .eq(ActivityRegistration::getActivityId, activityId)
-                            .eq(ActivityRegistration::getUserId, userId)
-            );
-
-            if (deleted <= 0) {
-                return false;
-            }
-
-            baseMapper.decreaseParticipantCount(activityId);
-
-            // MySQL 取消成功后，同步恢复 Redis 库存和报名集合
-            stringRedisTemplate.opsForValue().increment(stockKey(activityId));
-            stringRedisTemplate.opsForSet().remove(userSetKey(activityId), String.valueOf(userId));
-
-            return true;
-
-        } catch (Exception e) {
-            throw new RuntimeException("取消报名失败", e);
-        } finally {
-            if (locked && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+        if (deleted <= 0) {
+            return false;
         }
+
+        baseMapper.decreaseParticipantCount(activityId);
+
+        // MySQL 取消成功后，同步恢复 Redis 库存和报名集合
+        stringRedisTemplate.opsForValue().increment(stockKey(activityId));
+        stringRedisTemplate.opsForSet().remove(userSetKey(activityId), String.valueOf(userId));
+
+        return true;
     }
 
     public IPage<Activity> getUserRegisteredActivities(Long userId, int page, int size) {
