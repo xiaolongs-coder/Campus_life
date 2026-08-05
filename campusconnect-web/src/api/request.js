@@ -18,6 +18,11 @@ request.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
+    // 幂等性Key：从 config 中提取并注入到 Header
+    if (config.idempotencyKey) {
+      config.headers['X-Idempotency-Key'] = config.idempotencyKey
+    }
+
     console.log(`[Request] ${config.method.toUpperCase()} ${config.url}`, config.data)
 
     // Add timestamp for GET requests to prevent caching

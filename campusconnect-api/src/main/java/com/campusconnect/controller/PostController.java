@@ -2,6 +2,7 @@ package com.campusconnect.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.campusconnect.common.Result;
+import com.campusconnect.common.idempotent.Idempotent;
 import com.campusconnect.dto.CreatePostRequest;
 import com.campusconnect.dto.PostVO;
 import com.campusconnect.entity.Post;
@@ -135,6 +136,7 @@ public class PostController {
         return Result.success(vo);
     }
 
+    @Idempotent(key = "'post:create:' + #principal.id + ':' + #idemKey", expire = 5, message = "帖子发布中，请勿重复提交")
     @PostMapping
     public Result<?> createPost(@RequestBody CreatePostRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -236,6 +238,7 @@ public class PostController {
         return Result.success();
     }
 
+    @Idempotent(key = "'post:like:' + #id + ':' + #principal.id", expire = 3, message = "请勿重复点赞")
     @PostMapping("/{id}/like")
     public Result<?> likePost(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null)

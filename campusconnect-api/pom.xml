@@ -95,6 +95,12 @@
             <version>2.15.1</version>
         </dependency>
         
+        <!-- AOP (幂等性切面) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

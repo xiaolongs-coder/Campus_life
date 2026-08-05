@@ -170,7 +170,12 @@
           <Check v-if="draftSaved" class="w-4 h-4" />
           {{ draftSaved ? '已保存' : '保存草稿' }}
         </button>
-        <button @click="handleSubmit" :disabled="!content.trim()" class="flex-1 bg-gradient-to-r from-brand-purple to-blue-500 text-white py-2.5 rounded-xl font-bold hover:shadow-lg hover:shadow-brand-purple/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
+        <button @click="handleSubmit" :disabled="!content.trim() || isSubmitting" class="flex-1 bg-gradient-to-r from-brand-purple to-blue-500 text-white py-2.5 rounded-xl font-bold hover:shadow-lg hover:shadow-brand-purple/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
+          <span v-if="isSubmitting" class="flex items-center justify-center gap-2">
+            <Loader2 class="w-4 h-4 animate-spin" />发布中...
+          </span>
+          <span v-else>发布动态</span>
+        </button>
           {{ isEditing ? '保存修改' : '发布帖子' }}
         </button>
       </div>
@@ -221,6 +226,7 @@ const hasDraft = ref(false)
 const draftSaved = ref(false)
 
 const isSubmitting = ref(false)
+const idemKey = ref('')  // 幂等Key: 前端生成UUID，防止重复提交
 const fileInput = ref(null)
 import { uploadApi } from '../../api'
 
@@ -425,6 +431,9 @@ async function handleSubmit() {
   if (isSubmitting.value) return
   isSubmitting.value = true
 
+  // 生成幂等Key: crypto.randomUUID() 生成唯一ID
+  idemKey.value = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
+
   try {
     const finalImageUrls = []
     
@@ -473,7 +482,7 @@ async function handleSubmit() {
     if (isEditing.value) {
       await postStore.updatePost(postToEdit.value.id, postData)
     } else {
-      await postStore.createPost(postData, userStore.currentUser)
+      await postStore.createPost(postData, userStore.currentUser, idemKey.value)
     }
     
     localStorage.removeItem('postDraft')
