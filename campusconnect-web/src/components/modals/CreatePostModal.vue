@@ -176,8 +176,6 @@
           </span>
           <span v-else>发布动态</span>
         </button>
-          {{ isEditing ? '保存修改' : '发布帖子' }}
-        </button>
       </div>
     </div>
   </div>
