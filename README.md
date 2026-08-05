@@ -1,15 +1,15 @@
-# 校园脉动 CampusConnect
+# 珠科校园动脉 ZCST Life Hub
 
-一个面向高校学生的校园综合服务平台，基于 **Spring Boot 3 + Vue 3 + MySQL + Redis + RabbitMQ + WebSocket** 构建，覆盖校园动态、活动报名、学生拼团、实时聊天室、失物招领、后台管理等业务场景。
+一个面向珠海科技学院学生的校园综合服务平台，基于 **Spring Boot 3 + Vue 3 + MySQL + Redis + RabbitMQ + WebSocket** 构建，覆盖校园动态、活动报名、学生拼团、实时聊天室、失物招领、后台管理等业务场景。
 
-项目已部署至腾讯云服务器，支持公网访问、后台管理、实时消息推送和运营数据看板展示。
+项目已适配珠海科技学院（ZCST），支持本地开发和 Docker 部署。
 
 ## 在线体验
 
-- 前台地址：http://82.157.185.69
-- 后台地址：http://82.157.185.69/admin
+> 本地启动后访问：http://localhost:3000
 
-> 测试账号演示时提供。
+- 前台地址：http://localhost:3000
+- 后台地址：http://localhost:3000/admin
 
 ---
 
@@ -283,8 +283,8 @@ http://localhost:15672
 测试账号：
 
 ```text
-username: admin
-password: 123456
+username: guest
+password: guest
 ```
 
 ---
@@ -515,14 +515,14 @@ cd /opt/campusconnect
 拉取项目代码：
 
 ```bash
-git clone https://github.com/kaiyuzhao116/social_school.git
-cd social_school
+git clone https://github.com/xiaolongs-coder/Campus_life.git
+cd Campus_life
 ```
 
 如果 GitHub 拉取较慢，可以使用浅克隆：
 
 ```bash
-git clone --depth=1 https://github.com/kaiyuzhao116/social_school.git
+git clone --depth=1 https://github.com/xiaolongs-coder/Campus_life.git
 ```
 
 ---
@@ -622,8 +622,8 @@ http://服务器IP:15672
 测试账号：
 
 ```text
-username: admin
-password: 123456
+username: guest
+password: guest
 ```
 
 生产环境建议关闭 15672 公网访问，或通过安全组限制访问来源。
