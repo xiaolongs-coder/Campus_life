@@ -239,8 +239,8 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
             throw new RuntimeException("你已经参加过该拼团");
         }
 
-        // 4. 重新查最新数据
-        groupBuy = getById(groupBuyId);
+        // 4. 重新查最新数据（新变量，保证 lambda 能捕获 effectively final 的引用）
+        final GroupBuy latestGroupBuy = getById(groupBuyId);
 
         // 5. 条件判断成团：只有一个线程能成功
         boolean successUpdated = lambdaUpdate()
@@ -251,16 +251,16 @@ public class GroupBuyService extends ServiceImpl<GroupBuyMapper, GroupBuy> {
                 .update();
 
         if (successUpdated) {
-            groupBuy.setStatus("SUCCESS");
+            latestGroupBuy.setStatus("SUCCESS");
             runAfterCommit(() -> {
                 groupBuyEventProducer.sendSuccessEvent(
-                        buildGroupBuyEventMessage(groupBuy, "GROUP_BUY_SUCCESS", "SUCCESS")
+                        buildGroupBuyEventMessage(latestGroupBuy, "GROUP_BUY_SUCCESS", "SUCCESS")
                 );
-                groupBuyLivePushService.pushSuccess(groupBuy);
+                groupBuyLivePushService.pushSuccess(latestGroupBuy);
             });
         } else {
             runAfterCommit(() -> {
-                groupBuyLivePushService.pushJoined(groupBuy);
+                groupBuyLivePushService.pushJoined(latestGroupBuy);
             });
         }
     }
