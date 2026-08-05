@@ -5,7 +5,7 @@
       <div class="mb-6">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold mb-3">
           <Sparkles class="w-4 h-4" />
-          渤大校园事务 Agent
+          珠科校园事务 Agent
         </div>
 
         <h1 class="text-3xl font-black text-gray-900">
@@ -13,7 +13,7 @@
         </h1>
 
         <p class="text-gray-500 mt-2">
-          导入渤海大学官网、教务处、就业网、学院通知等公开信息，帮你把复杂通知变成看得懂的行动清单。
+          导入珠海科技学院官网、教务处、就业网、学院通知等公开信息，帮你把复杂通知变成看得懂的行动清单。
         </p>
       </div>
 
@@ -120,7 +120,7 @@
                 </div>
 
                 <div class="bg-gray-50 rounded-2xl p-4 text-sm text-gray-700 leading-7">
-                  你好，我是渤大校园事务 Agent。你可以问我：
+                  你好，我是珠科校园事务 Agent。你可以问我：
                   <br />
                   <span class="font-bold text-gray-900">“最近学校有什么通知？”</span>
                   <br />

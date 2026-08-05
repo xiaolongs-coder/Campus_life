@@ -40,7 +40,7 @@
       <div
           class="inline-flex items-center gap-2 w-fit mb-3 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-white text-xs font-bold backdrop-blur-sm"
       >
-        📍 渤海大学 · 锦州
+        📍 珠海科技学院 · 珠海金湾
       </div>
       <div
           class="inline-flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-medium backdrop-blur-sm"
@@ -74,17 +74,17 @@ let timer = null
 const slides = [
   {
     image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1400&q=80',
-    title: '渤大今天发生什么？',
+    title: '珠科今天发生什么？',
     subtitle: '拼团互助、校园动态、即时聊天，一站式发现身边的新鲜事。'
   },
   {
     image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1400&q=80',
-    title: '在渤大，找到同路人',
+    title: '在珠科，找到同路人',
     subtitle: '一起自习、拼外卖、参加活动，让校园生活更轻松。'
   },
   {
     image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
-    title: '连接渤海大学生活圈',
+    title: '连接珠科生活圈',
     subtitle: '从图书馆到食堂，从宿舍到操场，校园信息不再错过。'
   }
 ]

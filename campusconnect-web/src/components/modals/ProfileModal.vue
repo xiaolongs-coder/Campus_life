@@ -377,7 +377,7 @@
                 <div class="flex flex-col items-start pt-1">
                    <!-- Calligraphy Style School Name -->
                    <span class="text-xl text-white leading-none tracking-widest drop-shadow-md" style="font-family: 'KaiTi', 'STKaiti', 'SimKai', 'Microsoft YaHei', serif; font-weight: 800;">校园连接大学</span>
-                   <span class="text-[7px] font-bold text-white/80 uppercase tracking-[0.2em] mt-0.5 drop-shadow-sm font-sans">CAMPUSCONNECT UNIVERSITY</span>
+                   <span class="text-[7px] font-bold text-white/80 uppercase tracking-[0.2em] mt-0.5 drop-shadow-sm font-sans">ZHUHAI COLLEGE OF SCIENCE AND TECHNOLOGY</span>
                 </div>
               </div>
 
@@ -829,7 +829,7 @@ const idCardQrcode = ref('')
 async function generateQRCode() {
   if (!user.value) return
   
-  const text = `【CampusConnect 身份认证】
+  const text = `【珠科校园动脉 身份认证】
 姓名: ${user.value.name}
 ID: ${user.value.id}
 学院: ${user.value.college || '未填写'}

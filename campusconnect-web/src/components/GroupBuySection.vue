@@ -465,7 +465,7 @@ const normalizeCategory = (category) => {
   return '生活服务'
 }
 const extractKeywords = (text) => {
-  const keywords = ['烧烤', '外卖', '奶茶', '咖啡', '瑞幸', '水果', '拼车', '高铁站', '锦州南站', '羽毛球', '篮球', '打印', '资料']
+  const keywords = ['烧烤', '外卖', '奶茶', '咖啡', '瑞幸', '水果', '拼车', '高铁站', '珠海站', '金湾机场', '羽毛球', '篮球', '打印', '资料']
 
   return keywords.filter(keyword => text.includes(keyword))
 }

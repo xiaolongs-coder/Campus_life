@@ -14,13 +14,13 @@
           </div>
           <div class="flex flex-col">
             <span class="font-bold text-gray-900 dark:text-white leading-tight"
-              >渤大校园</span
+              >珠科校园</span
             >
             <p class="mt-2 text-xs text-gray-400">
               网站仍在不断完善中，感谢你的体验与建议。
             </p>
             <span class="text-[10px] text-gray-400 tracking-wider uppercase"
-              >面向渤海大学的校园生活互助平台</span
+              >面向珠海科技学院的校园生活互助平台</span
             >
           </div>
         </div>
@@ -46,7 +46,7 @@
         </div>
 
         <div class="text-xs text-gray-400 dark:text-gray-500">
-          &copy; {{ currentYear }} CampusConnect. All rights reserved.
+          &copy; {{ currentYear }} 珠科校园动脉. All rights reserved.
         </div>
       </div>
     </div>

@@ -29,7 +29,7 @@
           <div
             class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-medium tracking-wide">
             <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-            CampusConnect 2.0
+            珠科校园动脉 2.0
           </div>
           <h2 class="text-3xl font-bold tracking-tight text-white leading-tight">
             连接校园生活的<br />每一个精彩瞬间

@@ -35,7 +35,7 @@
               来源名称
               <input
                   v-model="manualForm.sourceName"
-                  placeholder="例如：渤海大学教务处"
+                  placeholder="例如：珠海科技学院教务处"
               />
             </label>
 
@@ -103,7 +103,7 @@
             列表接口 URL
             <input
                 v-model="crawlForm.listUrl"
-                placeholder="https://www.bhu.edu.cn/engine2/general/293065/type/more-datas"
+                placeholder="https://www.zcst.edu.cn/...通知公告列表接口"
             />
           </label>
 
@@ -189,7 +189,7 @@
               :disabled="crawlLoading"
               @click="submitAutoImport"
           >
-            一键导入渤大官网通知
+            一键导入珠科官网通知
           </button>
         </div>
       </section>
@@ -249,7 +249,7 @@ const result = ref(null)
 
 const manualForm = ref({
   title: '',
-  sourceName: '渤海大学',
+  sourceName: '珠海科技学院',
   sourceType: '手动补充',
   trustLevel: '高',
   url: '',
@@ -257,8 +257,8 @@ const manualForm = ref({
 })
 
 const crawlForm = ref({
-  listUrl: 'https://www.bhu.edu.cn/engine2/general/293065/type/more-datas',
-  sourceName: '渤海大学官网',
+  listUrl: 'https://www.zcst.edu.cn/...通知公告列表接口',
+  sourceName: '珠海科技学院官网',
   sourceType: '通知公告',
   trustLevel: '高',
   maxCount: 10,
@@ -274,7 +274,7 @@ const crawlForm = ref({
 const seeds = [
   {
     title: '缓考申请流程',
-    sourceName: '渤海大学教务处',
+    sourceName: '珠海科技学院教务处',
     sourceType: '教务处',
     trustLevel: '中',
     url: 'manual://defer-exam',
@@ -282,7 +282,7 @@ const seeds = [
   },
   {
     title: '成绩证明办理流程',
-    sourceName: '渤海大学教务处',
+    sourceName: '珠海科技学院教务处',
     sourceType: '教务处',
     trustLevel: '中',
     url: 'manual://grade-certificate',
@@ -290,7 +290,7 @@ const seeds = [
   },
   {
     title: '研究生材料提交提醒',
-    sourceName: '渤海大学研究生事务',
+    sourceName: '珠海科技学院研究生事务',
     sourceType: '研究生事务',
     trustLevel: '中',
     url: 'manual://graduate-materials',
@@ -298,7 +298,7 @@ const seeds = [
   },
   {
     title: '实习备案流程',
-    sourceName: '渤海大学就业网',
+    sourceName: '珠海科技学院就业网',
     sourceType: '就业网',
     trustLevel: '中',
     url: 'manual://internship-record',

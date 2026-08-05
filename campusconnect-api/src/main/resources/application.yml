@@ -59,7 +59,7 @@ jwt:
 
 # 文件上传路径 (使用绝对路径确保一致性)
 upload:
-  path: G:/Graduation-thesis/campus/campusconnect-api/uploads
+  path: D:/AICompany_project/Campus_wall/social_school/campusconnect-api/uploads
   url-prefix: /uploads
 
 # 日志配置
