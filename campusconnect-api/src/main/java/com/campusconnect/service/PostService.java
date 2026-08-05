@@ -1,5 +1,6 @@
 package com.campusconnect.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -9,6 +10,7 @@ import com.campusconnect.entity.User;
 import com.campusconnect.mapper.PostMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostService extends ServiceImpl<PostMapper, Post> {
@@ -59,11 +62,16 @@ public class PostService extends ServiceImpl<PostMapper, Post> {
 
                     // 4. 查库 + 回写缓存
                     List<Post> dbPosts = queryHotPostsFromDb(limit);
-                    stringRedisTemplate.opsForValue().set(
-                            cacheKey,
-                            objectMapper.writeValueAsString(dbPosts),
-                            Duration.ofMinutes(5)
-                    );
+                    try {
+                        stringRedisTemplate.opsForValue().set(
+                                cacheKey,
+                                objectMapper.writeValueAsString(dbPosts),
+                                Duration.ofMinutes(5)
+                        );
+                    } catch (JsonProcessingException e) {
+                        // 序列化失败不影响业务，下次请求重新查库即可
+                        log.warn("热门动态缓存序列化失败: {}", e.getMessage());
+                    }
                     return dbPosts;
                 } finally {
                     // Redisson 自动处理锁释放，自带看门狗防死锁
