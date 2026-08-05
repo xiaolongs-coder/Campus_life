@@ -1,7 +1,6 @@
 package com.campusconnect.controller;
 
 import com.campusconnect.common.Result;
-import com.campusconnect.common.idempotent.Idempotent;
 import com.campusconnect.entity.Comment;
 import com.campusconnect.entity.Post;
 import com.campusconnect.entity.User;
@@ -29,7 +28,6 @@ public class CommentController {
         return Result.success(commentService.getCommentsByPostId(postId, page, size));
     }
 
-    @Idempotent(key = "'comment:add:' + #postId + ':' + #principal.id + ':' + #idemKey", expire = 5, message = "评论发送中，请勿重复提交")
     @PostMapping("/posts/{postId}/comments")
     public Result<?> addComment(@PathVariable Long postId,
             @RequestBody Comment comment,

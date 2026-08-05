@@ -224,7 +224,6 @@ const hasDraft = ref(false)
 const draftSaved = ref(false)
 
 const isSubmitting = ref(false)
-const idemKey = ref('')  // 幂等Key: 前端生成UUID，防止重复提交
 const fileInput = ref(null)
 import { uploadApi } from '../../api'
 
@@ -429,9 +428,6 @@ async function handleSubmit() {
   if (isSubmitting.value) return
   isSubmitting.value = true
 
-  // 生成幂等Key: crypto.randomUUID() 生成唯一ID
-  idemKey.value = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
-
   try {
     const finalImageUrls = []
     
@@ -480,7 +476,7 @@ async function handleSubmit() {
     if (isEditing.value) {
       await postStore.updatePost(postToEdit.value.id, postData)
     } else {
-      await postStore.createPost(postData, userStore.currentUser, idemKey.value)
+      await postStore.createPost(postData, userStore.currentUser)
     }
     
     localStorage.removeItem('postDraft')

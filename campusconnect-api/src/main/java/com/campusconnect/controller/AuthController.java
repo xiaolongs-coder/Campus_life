@@ -1,7 +1,6 @@
 package com.campusconnect.controller;
 
 import com.campusconnect.common.Result;
-import com.campusconnect.common.idempotent.Idempotent;
 import com.campusconnect.entity.User;
 import com.campusconnect.security.JwtUtil;
 import com.campusconnect.service.UserService;
@@ -69,7 +68,6 @@ public class AuthController {
         return Result.success(data);
     }
 
-    @Idempotent(key = "'register:' + #req.email", expire = 10, message = "注册请求正在处理中，请勿重复提交")
     @PostMapping("/register")
     public Result<?> register(@RequestBody RegisterRequest req) {
         // 基础校验

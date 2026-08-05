@@ -186,8 +186,8 @@ export const usePostStore = defineStore('post', () => {
   // 创建/编辑帖子
   // ========================================
 
-  // 创建帖子（idempotencyKey 可选，用于幂等防重）
-  async function createNewPost(data, user, idempotencyKey) {
+  // 创建帖子
+  async function createNewPost(data, user) {
     loading.value = true
     error.value = null
 
@@ -198,7 +198,7 @@ export const usePostStore = defineStore('post', () => {
           images: data.images || [],
           tags: data.tags || [],
           isAnonymous: data.isAnonymous || false
-        }, idempotencyKey)
+        })
         const newPost = transformPost(res.data)
         posts.value.unshift(newPost)
         return { success: true, data: newPost }

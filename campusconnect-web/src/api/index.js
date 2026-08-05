@@ -142,9 +142,9 @@ export const postApi = {
   getPostById(id) {
     return request.get(`/posts/${id}`)
   },
-  // 创建帖子（idempotencyKey: 幂等防重，前端生成 UUID）
-  createPost(data, idempotencyKey) {
-    return request.post('/posts', data, { idempotencyKey })
+  // 创建帖子
+  createPost(data) {
+    return request.post('/posts', data)
   },
   // 更新帖子
   updatePost(id, data) {
