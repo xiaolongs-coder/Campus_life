@@ -114,6 +114,7 @@ public class CampusKnowledgeImportService {
         knowledge.setSourceName(defaultValue(request.getSourceName(), "未知来源"));
         knowledge.setSourceType(defaultValue(request.getSourceType(), "校园通知"));
         knowledge.setUrl(request.getUrl());
+        // 存纯文本（几十KB），用于将来换切分策略时从MySQL重读重切
         knowledge.setContent(request.getContent());
         knowledge.setContentHash(contentHash);
         knowledge.setTrustLevel(defaultValue(request.getTrustLevel(), "高"));
@@ -127,20 +128,42 @@ public class CampusKnowledgeImportService {
         log.info("新增校园知识：id={}, title={}", knowledge.getId(), knowledge.getTitle());
 
         /*
-         * 4. 文本切片
+         * 4. 文本切片（metadata 自动继承到每个 chunk）
          */
-        List<String> chunks = campusChunkService.split(request.getContent());
+        com.campusconnect.agent.model.Document doc = com.campusconnect.agent.model.Document.of(
+                request.getContent(),
+                request.getMetadata() != null ? new HashMap<>(request.getMetadata()) : new HashMap<>()
+        );
+
+        List<com.campusconnect.agent.model.Document> chunks = campusChunkService.splitWithMetadata(doc, 350, 50);
 
         int successCount = 0;
+        int dedupSkipped = 0;
 
         for (int i = 0; i < chunks.size(); i++) {
-            String chunkText = chunks.get(i);
+            com.campusconnect.agent.model.Document chunkDoc = chunks.get(i);
+            String chunkText = chunkDoc.getContent();
+
+            // === 去重：chunk 级内容 Hash ===
+            String chunkHash = DigestUtils.md5DigestAsHex(
+                    chunkText.getBytes(StandardCharsets.UTF_8)
+            );
+            CampusKnowledgeChunk existed = campusKnowledgeChunkMapper.selectOne(
+                    new LambdaQueryWrapper<CampusKnowledgeChunk>()
+                            .eq(CampusKnowledgeChunk::getContentHash, chunkHash)
+                            .last("LIMIT 1")
+            );
+            if (existed != null) {
+                dedupSkipped++;
+                continue; // 相同内容已存在，跳过
+            }
 
             CampusKnowledgeChunk chunk = new CampusKnowledgeChunk();
             chunk.setKnowledgeId(knowledge.getId());
             chunk.setChunkIndex(i);
             chunk.setContent(chunkText);
-            chunk.setTokenCount(chunkText.length());
+            chunk.setContentHash(chunkHash);
+            chunk.setTokenCount(CampusChunkService.estimateTokens(chunkText));
             chunk.setCreatedAt(LocalDateTime.now());
 
             campusKnowledgeChunkMapper.insert(chunk);
@@ -156,7 +179,7 @@ public class CampusKnowledgeImportService {
             qdrantVectorService.ensureCollection(vector.size());
 
             /*
-             * 7. 写入 Qdrant
+             * 7. 写入 Qdrant — 携带完整溯源信息
              */
             Map<String, Object> payload = new HashMap<>();
             payload.put("chunkId", chunk.getId());
@@ -167,6 +190,15 @@ public class CampusKnowledgeImportService {
             payload.put("url", knowledge.getUrl());
             payload.put("trustLevel", knowledge.getTrustLevel());
             payload.put("content", chunkText);
+
+            // 继承文档溯源元数据
+            if (chunkDoc.getMetadata() != null) {
+                payload.put("source", chunkDoc.getMetaString("source"));
+                payload.put("extractMethod", chunkDoc.getMetaString("extract_method"));
+                payload.put("pageCount", chunkDoc.getMeta("page_count"));
+                payload.put("chunkIndex", chunkDoc.getMeta("chunk_index"));
+                payload.put("chunkCount", chunkDoc.getMeta("chunk_count"));
+            }
 
             qdrantVectorService.upsertPoint(chunk.getId(), vector, payload);
 
@@ -181,9 +213,11 @@ public class CampusKnowledgeImportService {
         result.put("title", knowledge.getTitle());
         result.put("chunkCount", chunks.size());
         result.put("successCount", successCount);
+        result.put("dedupSkipped", dedupSkipped);
         result.put("imported", true);
         result.put("updated", false);
-        result.put("message", "知识导入成功");
+        result.put("message", "知识导入成功，新增 " + successCount + " 个 chunk"
+                + (dedupSkipped > 0 ? "，去重跳过 " + dedupSkipped + " 个" : ""));
 
         return result;
     }

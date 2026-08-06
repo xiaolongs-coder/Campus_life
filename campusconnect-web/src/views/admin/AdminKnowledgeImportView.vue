@@ -12,6 +12,42 @@
     </div>
 
     <div class="grid">
+      <!-- 📄 文件上传导入 -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>📄 文件上传导入</h2>
+            <p>支持 PDF、Word、PPT、Excel、Markdown、TXT — 自动解析文字内容导入知识库。</p>
+          </div>
+        </div>
+        <div class="form">
+          <label>
+            选择文件
+            <input type="file" ref="fileInput" @change="onFileSelected" accept=".pdf,.docx,.doc,.pptx,.xlsx,.md,.html,.htm,.txt,.png,.jpg,.jpeg,.bmp,.tiff" />
+          </label>
+          <p v-if="fileInfo" class="hint" style="color:#6366f1">{{ fileInfo }}</p>
+          <p class="hint" style="font-size:12px; color:#888; margin-top:-4px">
+            PDF/Word/PPT/Excel → Tika解析 | MD/TXT/CSV → 直接读取 | 图片 → OCR识别
+          </p>
+          <label>标题（可选，默认用文件名）<input v-model="fileForm.title" placeholder="留空则使用文件名" /></label>
+          <div class="row">
+            <label>来源名称 <input v-model="fileForm.sourceName" placeholder="如：珠海科技学院教务处" /></label>
+            <label>来源类型
+              <select v-model="fileForm.sourceType">
+                <option value="教务处">教务处</option>
+                <option value="就业网">就业网</option>
+                <option value="学院通知">学院通知</option>
+                <option value="文件上传">文件上传</option>
+                <option value="手动补充">手动补充</option>
+              </select>
+            </label>
+          </div>
+          <button class="primary-btn" :disabled="fileLoading || !selectedFile" @click="submitFileImport">
+            {{ fileLoading ? '解析中...' : '上传并导入知识库' }}
+          </button>
+        </div>
+      </section>
+
       <!-- 手动导入 -->
       <section class="card">
         <div class="card-header">
@@ -242,10 +278,68 @@ import {
   crawlCampusKnowledge,
   importCampusKnowledge
 } from '@/api/adminKnowledge'
+import request from '@/api/request'
 
 const manualLoading = ref(false)
 const crawlLoading = ref(false)
 const result = ref(null)
+
+// ==================== 文件上传导入 ====================
+const fileInput = ref(null)
+const selectedFile = ref(null)
+const fileInfo = ref('')
+const fileLoading = ref(false)
+const fileForm = ref({
+  title: '',
+  sourceName: '珠海科技学院',
+  sourceType: '文件上传',
+  trustLevel: '高'
+})
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+function onFileSelected(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  selectedFile.value = file
+  fileInfo.value = `${file.name} (${formatFileSize(file.size)})`
+  if (!fileForm.value.title) fileForm.value.title = file.name.replace(/\.[^.]+$/, '')
+}
+
+async function submitFileImport() {
+  if (!selectedFile.value) return
+  fileLoading.value = true
+  result.value = null
+
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('title', fileForm.value.title || '')
+    formData.append('sourceName', fileForm.value.sourceName)
+    formData.append('sourceType', fileForm.value.sourceType)
+    formData.append('trustLevel', '高')
+
+    const res = await request.post('/agent/campus/knowledge/import-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000  // 大文件允许 2 分钟
+    })
+
+    result.value = res
+    // 清空
+    selectedFile.value = null
+    fileInfo.value = ''
+    if (fileInput.value) fileInput.value.value = ''
+    fileForm.value.title = ''
+  } catch (e) {
+    result.value = { error: e?.response?.data?.message || e.message || '上传失败' }
+  } finally {
+    fileLoading.value = false
+  }
+}
 
 const manualForm = ref({
   title: '',

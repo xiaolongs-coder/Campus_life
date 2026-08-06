@@ -22,6 +22,7 @@ public class CampusKnowledge {
 
     private String url;
 
+    /** 提取后的纯文本（几十KB，便于将来换切分策略时重切） */
     private String content;
 
     private String contentHash;
