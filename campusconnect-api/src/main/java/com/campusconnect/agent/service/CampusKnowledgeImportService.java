@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
+import com.campusconnect.agent.CampusConstants;
+
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -111,15 +113,15 @@ public class CampusKnowledgeImportService {
          */
         CampusKnowledge knowledge = new CampusKnowledge();
         knowledge.setTitle(request.getTitle());
-        knowledge.setSourceName(defaultValue(request.getSourceName(), "未知来源"));
-        knowledge.setSourceType(defaultValue(request.getSourceType(), "校园通知"));
+        knowledge.setSourceName(defaultValue(request.getSourceName(), CampusConstants.SOURCE_NAME_UNKNOWN));
+        knowledge.setSourceType(defaultValue(request.getSourceType(), CampusConstants.SOURCE_TYPE_CAMPUS));
         knowledge.setUrl(request.getUrl());
         // 存纯文本（几十KB），用于将来换切分策略时从MySQL重读重切
         knowledge.setContent(request.getContent());
         knowledge.setContentHash(contentHash);
-        knowledge.setTrustLevel(defaultValue(request.getTrustLevel(), "高"));
+        knowledge.setTrustLevel(defaultValue(request.getTrustLevel(), CampusConstants.TRUST_HIGH));
         knowledge.setLastCrawledAt(LocalDateTime.now());
-        knowledge.setStatus("ACTIVE");
+        knowledge.setStatus(CampusConstants.STATUS_ACTIVE);
         knowledge.setCreatedAt(LocalDateTime.now());
         knowledge.setUpdatedAt(LocalDateTime.now());
 

@@ -279,6 +279,7 @@ import {
   importCampusKnowledge
 } from '@/api/adminKnowledge'
 import request from '@/api/request'
+import { SOURCE_NAME, SOURCE_TYPE, TRUST_LEVEL } from '@/constants/campus'
 
 const manualLoading = ref(false)
 const crawlLoading = ref(false)
@@ -291,9 +292,9 @@ const fileInfo = ref('')
 const fileLoading = ref(false)
 const fileForm = ref({
   title: '',
-  sourceName: '珠海科技学院',
-  sourceType: '文件上传',
-  trustLevel: '高'
+  sourceName: SOURCE_NAME.ZCST,
+  sourceType: SOURCE_TYPE.FILE,
+  trustLevel: TRUST_LEVEL.HIGH
 })
 
 function formatFileSize(bytes) {
@@ -343,18 +344,18 @@ async function submitFileImport() {
 
 const manualForm = ref({
   title: '',
-  sourceName: '珠海科技学院',
-  sourceType: '手动补充',
-  trustLevel: '高',
+  sourceName: SOURCE_NAME.ZCST,
+  sourceType: SOURCE_TYPE.MANUAL,
+  trustLevel: TRUST_LEVEL.HIGH,
   url: '',
   content: ''
 })
 
 const crawlForm = ref({
   listUrl: 'https://www.zcst.edu.cn/...通知公告列表接口',
-  sourceName: '珠海科技学院官网',
-  sourceType: '通知公告',
-  trustLevel: '高',
+  sourceName: SOURCE_NAME.ZCST,
+  sourceType: SOURCE_TYPE.NOTICE,
+  trustLevel: TRUST_LEVEL.HIGH,
   maxCount: 10,
   engineInstanceId: 425304,
   pageNum: 1,

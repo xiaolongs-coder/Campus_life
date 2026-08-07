@@ -2,15 +2,12 @@ package com.campusconnect.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-/**
- * 临时数据库迁移 Runner
- * 用于补齐 conversation_member 表缺失的字段
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -18,6 +15,9 @@ public class MigrationRunner implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${admin.default-password:admin123}")
+    private String defaultAdminPassword;
 
     @Override
     public void run(String... args) throws Exception {
@@ -173,13 +173,13 @@ public class MigrationRunner implements CommandLineRunner {
             Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user WHERE username = 'admin'", Long.class);
 
             if (count == null || count == 0) {
-                String adminHash = passwordEncoder.encode("admin123");
+                String adminHash = passwordEncoder.encode(defaultAdminPassword);
                 String insertUserSql = """
                         INSERT INTO `user` (`username`, `password`, `nickname`, `role`, `status`)
                         VALUES ('admin', ?, '管理员', 'ADMIN', 'NORMAL')
                         """;
                 jdbcTemplate.update(insertUserSql, adminHash);
-                log.info("已创建默认管理员用户 (admin/admin123)");
+                log.info("已创建默认管理员用户 (admin/***)");
             }
         } catch (Exception e) {
             log.error("检查/创建默认用户失败: {}", e.getMessage());

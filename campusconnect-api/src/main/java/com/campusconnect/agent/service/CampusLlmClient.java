@@ -42,7 +42,7 @@ public class CampusLlmClient {
             String context = buildContext(chunks);
 
             String systemPrompt = """
-                    你是渤海大学校园事务 Agent。
+                    你是珠海科技学院校园事务 Agent。
                     你的任务是根据检索到的学校资料，回答学生关于通知、校历、办事流程、材料清单、截止时间的问题。
 
                     要求：

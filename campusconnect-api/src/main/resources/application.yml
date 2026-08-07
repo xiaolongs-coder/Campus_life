@@ -1,33 +1,35 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
 
 spring:
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      database: 0
   application:
     name: campusconnect-api
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 0
+
   rabbitmq:
-    host: localhost
-    port: 5672
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASS:guest}
     virtual-host: /
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3307/campusconnect?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:campusconnect}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:root}
     password: ${DB_PASS:123456}
 
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 50MB
+      max-file-size: ${UPLOAD_MAX_SIZE:20MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST:50MB}
 
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -48,11 +50,11 @@ mybatis-plus:
 
 jwt:
   secret: ${JWT_SECRET:campusconnect-secret-key-2024-graduation-thesis-project}
-  expiration: 86400000
-  refresh-expiration: 604800000
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 upload:
-  path: D:/AICompany_project/Campus_wall/social_school/campusconnect-api/uploads
+  path: ${UPLOAD_PATH:D:/AICompany_project/Campus_wall/social_school/campusconnect-api/uploads}
   url-prefix: /uploads
 
 logging:
@@ -63,28 +65,38 @@ logging:
 # ==================== AI 配置 ====================
 ai:
   llm:
-    enabled: true
-    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+    enabled: ${AI_LLM_ENABLED:true}
+    base-url: ${AI_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
     api-key: ${DASHSCOPE_API_KEY}
-    model: qwen-plus
+    model: ${AI_LLM_MODEL:qwen-plus}
   embedding:
-    enabled: true
-    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings
+    enabled: ${AI_EMBEDDING_ENABLED:true}
+    base-url: ${AI_EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings}
     api-key: ${DASHSCOPE_API_KEY}
-    model: text-embedding-v4
+    model: ${AI_EMBEDDING_MODEL:text-embedding-v4}
 
 qdrant:
-  url: http://localhost:6333
-  collection-name: campus_knowledge
+  url: ${QDRANT_URL:http://localhost:6333}
+  collection-name: ${QDRANT_COLLECTION:campus_knowledge}
 
 ocr:
   paddle:
     python-path: ${PYTHON_PATH:python}
     lang: ch
-    timeout: 60
+    timeout: ${OCR_TIMEOUT:60}
+
+crawler:
+  zcst:
+    notice-url: ${CRAWLER_ZCST_LIST_URL:https://www.zcst.edu.cn/90/list17.psp}
+    max-items: ${CRAWLER_MAX_ITEMS:5}
+
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+
+admin:
+  default-password: ${ADMIN_DEFAULT_PASSWORD:admin123}
 
 ---
-# ==================== 生产环境 profile ====================
 spring:
   config:
     activate:

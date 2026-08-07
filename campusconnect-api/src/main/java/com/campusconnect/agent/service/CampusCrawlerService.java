@@ -11,6 +11,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import com.campusconnect.agent.CampusConstants;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -25,13 +27,30 @@ public class CampusCrawlerService {
 
     private final CampusKnowledgeImportService campusKnowledgeImportService;
     private final ObjectMapper objectMapper;
+    private final ContentCleaner contentCleaner;
+
+    @Value("${crawler.zcst.notice-url:https://www.zcst.edu.cn/90/list17.psp}")
+    private String zcstNoticeUrl;
+
+    @Value("${crawler.max-items:5}")
+    private int maxCrawlItems;
+
+    public Map<String, Object> crawlZcstNotices() {
+        CampusCrawlRequest request = new CampusCrawlRequest();
+        request.setListUrl(zcstNoticeUrl);
+        request.setSourceName(CampusConstants.SOURCE_NAME_ZCST);
+        request.setSourceType(CampusConstants.SOURCE_TYPE_NOTICE);
+        request.setTrustLevel(CampusConstants.TRUST_HIGH);
+        request.setMaxCount(maxCrawlItems);
+        return crawlStaticHtml(request);
+    }
 
     public Map<String, Object> crawlAndImport(CampusCrawlRequest request) {
         if (isBlank(request.getListUrl())) {
             throw new RuntimeException("列表页 URL 不能为空");
         }
 
-        // 渤海大学动态接口：直接请求 more-datas JSON
+        // 珠海科技学院动态接口：直接请求 more-datas JSON
         if (request.getListUrl().contains("/type/more-datas")) {
             return crawlBhuMoreDatasApi(request);
         }
@@ -41,7 +60,7 @@ public class CampusCrawlerService {
     }
 
     /**
-     * 渤海大学 more-datas 接口爬取
+     * 珠海科技学院 more-datas 接口爬取
      */
     private Map<String, Object> crawlBhuMoreDatasApi(CampusCrawlRequest request) {
         if (request.getEngineInstanceId() == null) {
@@ -84,7 +103,7 @@ public class CampusCrawlerService {
             List<JsonNode> items = new ArrayList<>();
             collectNoticeItems(root, items);
 
-            log.info("渤大 more-datas 通知数量：{}", items.size());
+            log.info("珠科 more-datas 通知数量：{}", items.size());
 
             Set<String> visitedUrls = new LinkedHashSet<>();
 
@@ -133,9 +152,9 @@ public class CampusCrawlerService {
 
                     CampusKnowledgeImportRequest importRequest = new CampusKnowledgeImportRequest();
                     importRequest.setTitle(realTitle);
-                    importRequest.setSourceName(defaultValue(request.getSourceName(), "渤海大学"));
-                    importRequest.setSourceType(defaultValue(request.getSourceType(), "校园通知"));
-                    importRequest.setTrustLevel(defaultValue(request.getTrustLevel(), "高"));
+                    importRequest.setSourceName(defaultValue(request.getSourceName(), CampusConstants.SOURCE_NAME_ZCST));
+                    importRequest.setSourceType(defaultValue(request.getSourceType(), CampusConstants.SOURCE_TYPE_CAMPUS));
+                    importRequest.setTrustLevel(defaultValue(request.getTrustLevel(), CampusConstants.TRUST_HIGH));
                     importRequest.setUrl(detailUrl);
                     importRequest.setContent(content);
 
@@ -162,7 +181,7 @@ public class CampusCrawlerService {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("爬取渤大 more-datas 接口失败：" + e.getMessage(), e);
+            throw new RuntimeException("爬取通知列表接口失败：" + e.getMessage(), e);
         }
 
         return buildResult(request.getListUrl(), total, success, fail, successUrls, failMessages);
@@ -207,7 +226,7 @@ public class CampusCrawlerService {
                             .timeout(10000)
                             .get();
 
-                    String realTitle = extractTitle(detailDoc, "校园通知");
+                    String realTitle = extractTitle(detailDoc, CampusConstants.SOURCE_TYPE_CAMPUS);
                     String content = extractContent(detailDoc);
 
                     if (content.length() < 80) {
@@ -220,9 +239,9 @@ public class CampusCrawlerService {
 
                     CampusKnowledgeImportRequest importRequest = new CampusKnowledgeImportRequest();
                     importRequest.setTitle(realTitle);
-                    importRequest.setSourceName(defaultValue(request.getSourceName(), "渤海大学"));
-                    importRequest.setSourceType(defaultValue(request.getSourceType(), "校园通知"));
-                    importRequest.setTrustLevel(defaultValue(request.getTrustLevel(), "高"));
+                    importRequest.setSourceName(defaultValue(request.getSourceName(), CampusConstants.SOURCE_NAME_ZCST));
+                    importRequest.setSourceType(defaultValue(request.getSourceType(), CampusConstants.SOURCE_TYPE_CAMPUS));
+                    importRequest.setTrustLevel(defaultValue(request.getTrustLevel(), CampusConstants.TRUST_HIGH));
                     importRequest.setUrl(detailUrl);
                     importRequest.setContent(content);
 
@@ -269,7 +288,7 @@ public class CampusCrawlerService {
             Long pageId = request.getPageId() == null ? 55965L : request.getPageId();
             Long websiteId = request.getWebsiteId() == null ? 43901L : request.getWebsiteId();
 
-            return "https://www.bhu.edu.cn/engine2/general/"
+            return "https://www.zcst.edu.cn/noteinfo/"
                     + articleId
                     + "/detail?engineInstanceId="
                     + request.getEngineInstanceId()
@@ -327,7 +346,7 @@ public class CampusCrawlerService {
             return typeName;
         }
 
-        return "校园通知";
+        return CampusConstants.SOURCE_TYPE_CAMPUS;
     }
 
     private String findTitleValue(JsonNode node) {
@@ -455,22 +474,11 @@ public class CampusCrawlerService {
         doc.select("script, style, nav, header, footer").remove();
 
         String[] selectors = {
-                "article",
-                ".article",
-                ".content",
-                ".news-content",
-                ".detail",
-                ".main-content",
-                ".wp_articlecontent",
-                ".v_news_content",
-                "#vsb_content",
-                "#vsb_content_2",
-                ".TRS_Editor",
-                ".con",
-                ".info-content",
-                ".article_content",
-                ".news_content",
-                "#content"
+                "article", ".article", ".content", ".news-content",
+                ".detail", ".main-content", ".wp_articlecontent",
+                ".v_news_content", "#vsb_content", "#vsb_content_2",
+                ".TRS_Editor", ".con", ".info-content",
+                ".article_content", ".news_content", "#content"
         };
 
         for (String selector : selectors) {
@@ -478,11 +486,11 @@ public class CampusCrawlerService {
             String text = cleanText(elements.text());
 
             if (text.length() > 100) {
-                return text;
+                return contentCleaner.clean(text);
             }
         }
 
-        return cleanText(doc.body().text());
+        return contentCleaner.clean(cleanText(doc.body().text()));
     }
 
     private String toAbsoluteUrl(String listUrl, String rawUrl) {

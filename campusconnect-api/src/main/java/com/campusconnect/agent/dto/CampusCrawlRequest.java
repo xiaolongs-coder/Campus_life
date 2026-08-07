@@ -11,7 +11,7 @@ public class CampusCrawlRequest {
     private String listUrl;
 
     /**
-     * 来源名称，比如：渤海大学教务处
+     * 来源名称，比如：珠海科技学院教务处
      */
     private String sourceName;
 
@@ -31,7 +31,7 @@ public class CampusCrawlRequest {
     private Integer maxCount = 10;
 
     /**
-     * 渤海大学 more-datas 接口参数
+     * 珠海科技学院 more-datas 接口参数
      */
     private Long engineInstanceId;
 

@@ -89,7 +89,7 @@ public class GroupBuyAgentService {
     }
 
     private String guessCategory(String content) {
-        if (content.contains("拼车") || content.contains("高铁站") || content.contains("锦州南站") || content.contains("车站")) {
+        if (content.contains("拼车") || content.contains("高铁站") || content.contains("珠海站") || content.contains("车站")) {
             return "拼车";
         }
 
@@ -109,8 +109,8 @@ public class GroupBuyAgentService {
     }
 
     private String guessLocation(String content) {
-        if (content.contains("锦州南站")) {
-            return "锦州南站";
+        if (content.contains("珠海站")) {
+            return "珠海站";
         }
 
         if (content.contains("高铁站")) {

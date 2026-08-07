@@ -1,5 +1,6 @@
 package com.campusconnect.agent.controller;
 
+import com.campusconnect.agent.CampusConstants;
 import com.campusconnect.agent.dto.CampusAgentRequest;
 import com.campusconnect.agent.dto.CampusCrawlRequest;
 import com.campusconnect.agent.dto.CampusKnowledgeImportRequest;
@@ -61,9 +62,9 @@ public class CampusAgentController {
         payload.put("chunkId", pointId);
         payload.put("knowledgeId", 1L);
         payload.put("title", "缓考申请流程测试");
-        payload.put("sourceName", "渤海大学教务处");
-        payload.put("sourceType", "教务处");
-        payload.put("trustLevel", "高");
+        payload.put("sourceName", CampusConstants.SOURCE_NAME_ZCST);
+        payload.put("sourceType", CampusConstants.SOURCE_TYPE_ACADEMIC);
+        payload.put("trustLevel", CampusConstants.TRUST_HIGH);
         payload.put("content", text);
 
         qdrantVectorService.upsertPoint(pointId, vector, payload);
@@ -115,9 +116,9 @@ public class CampusAgentController {
     public Result<?> importFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "sourceName", defaultValue = "文件上传") String sourceName,
-            @RequestParam(value = "sourceType", defaultValue = "文件上传") String sourceType,
-            @RequestParam(value = "trustLevel", defaultValue = "高") String trustLevel
+            @RequestParam(value = "sourceName", defaultValue = CampusConstants.SOURCE_NAME_UPLOAD) String sourceName,
+            @RequestParam(value = "sourceType", defaultValue = CampusConstants.SOURCE_TYPE_FILE) String sourceType,
+            @RequestParam(value = "trustLevel", defaultValue = CampusConstants.TRUST_HIGH) String trustLevel
     ) {
         if (file.isEmpty()) {
             return Result.error(400, "请选择文件");
